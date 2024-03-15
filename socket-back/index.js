@@ -5,6 +5,7 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 const morgan = require("morgan");
 const { connection } = require("./connection");
+const User = require("./models/users.model");
 require("dotenv").config();
 
 //Proceso de servicios
@@ -24,7 +25,47 @@ app.get("/", (__, res) => {
 });
 
 io.on("connection", (socket) => {
-  console.log(`usuario ${socket.id}`);
+  console.log(`usuario: ${socket.id} conectado`);
+  //Entra en una sala
+  socket.on("joinRoom", async (data) => {
+    try {
+      const user = await User.findOne({ where: { name: data.username } });
+      if (user) {
+        user.id_socket = socket.id;
+        await user.save();
+        socket.join(data.room);
+        return socket.emit("joinRoom", {
+          status: true,
+          msg: `${data.username} se unió a la sala ${data.room}`,
+        });
+      }
+
+      await User.create({ name: data.username, id_socket: socket.id });
+      socket.join(data.room);
+      return socket.emit("joinRoom", {
+        status: true,
+        msg: `${data.username} se unió a la sala ${data.room}`,
+      });
+    } catch (error) {
+      console.log(error);
+      return socket.emit("joinRoom", { status: false, msg: "Algo salió mal" });
+    }
+  });
+
+  socket.on("sendMessage", async (data) => {
+    try {
+      const { name } = await User.findOne({
+        where: { id_socket: socket.id },
+        attributes: ["name"],
+      });
+      console.log(data);
+      const repsonse = { message: data.message, status: true, name };
+      socket.broadcast.emit("reciveMessage", repsonse);
+    } catch (error) {
+      console.log(error);
+    }
+  });
+
   //disconnect
   socket.on("disconnect", () =>
     console.log(`usuario: ${socket.id} desconectado`)

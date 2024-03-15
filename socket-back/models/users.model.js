@@ -14,6 +14,10 @@ const User = connection.define(
       type: DataTypes.STRING,
       allowNull: false,
     },
+    id_socket: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
   },
   { updatedAt: false }
 );
